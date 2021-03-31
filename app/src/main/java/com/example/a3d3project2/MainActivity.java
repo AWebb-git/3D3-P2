@@ -27,7 +27,7 @@ import java.net.UnknownHostException;
 import java.util.Enumeration;
 
 public class MainActivity extends AppCompatActivity {
-public static final String Dest_IP = "YOUR_DEST_IP";
+public static final String Dest_IP = "Your IP";
 public static final int Dest_Port = 1201;  //ENTER whatever your dest port is
 public Socket socket;
 public TextView response;
@@ -35,6 +35,9 @@ public TextView info;
 public String message;
 public String Source_IP = "null";
 public int Source_Port = 1201;  //random port number
+public String dir_IP = "YOUR Directory IP";
+public int dir_port = 12000;
+public String list = null;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -46,26 +49,39 @@ public int Source_Port = 1201;  //random port number
         Source_IP = getLocalIpAddress();
         info.setText(Source_IP);
         new Thread(new RecThread()).start();
+        dirConnect();
+    }
+
+    public void dirConnect(){
+        String portMsg = String.valueOf(Source_Port);
+        new Thread(new SendThread(portMsg, dir_IP, dir_port)).start();
     }
 
     //runs on button click
     public void sendMsgBtn(View view){
         EditText msg = (EditText)findViewById(R.id.EditText);
         message = msg.getText().toString().trim();
-        new Thread(new SendThread()).start();
+        new Thread(new SendThread(message, Dest_IP, Dest_Port)).start();
     }
 
     class RecThread implements Runnable{
         @Override
         public void run() {
             BufferedReader input;
+            PrintWriter output;
             try{
                 ServerSocket serverSocket = new ServerSocket(Source_Port);
                 while(true) {
                     Socket socket = serverSocket.accept();
                     input = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+                    output = new PrintWriter(socket.getOutputStream());
                     final String recMsg = input.readLine();
                     runOnUiThread(()->{response.setText(recMsg);});
+                    if(recMsg.equals("PING")){
+                        output.write("ACK");
+                        output.flush();
+                        socket.shutdownOutput();
+                    }
                     socket.close();
                 }
 
@@ -76,24 +92,35 @@ public int Source_Port = 1201;  //random port number
     }
 
     class SendThread implements Runnable{
+        private String message;
+        private String dest_ip;
+        private int dest_port;
+        SendThread(String message, String dest_ip, int dest_port){
+            this.message = message;
+            this.dest_ip = dest_ip;
+            this.dest_port = dest_port;
+        }
         @Override
         public void run() {
             InetAddress destIP = null;
             PrintWriter outputSend = null;
+            BufferedReader inputSend = null;
             try {
-                destIP = InetAddress.getByName(Dest_IP);
+                destIP = InetAddress.getByName(dest_ip);
             } catch (UnknownHostException e) {
                 response.setText("Error ip");
             }
             try {
-                socket = new Socket(destIP,Dest_Port);
+                socket = new Socket(destIP, dest_port);
                 outputSend = new PrintWriter(socket.getOutputStream());
+                inputSend = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+                outputSend.write(message);
+                outputSend.flush();
+                socket.shutdownOutput();
+                list = inputSend.readLine();
             } catch (IOException e) {
                 response.setText("Error IO");
             }
-            outputSend.write(message);
-            outputSend.println();
-            outputSend.flush();
         }
     }
 
