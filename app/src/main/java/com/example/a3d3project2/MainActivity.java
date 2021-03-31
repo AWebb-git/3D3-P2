@@ -2,16 +2,20 @@ package com.example.a3d3project2;
 
 import androidx.appcompat.app.AppCompatActivity;
 
+import android.content.Context;
 import android.os.Bundle;
 import android.view.View;
+import android.widget.AdapterView;
+import android.widget.ArrayAdapter;
+import android.widget.BaseAdapter;
 import android.widget.EditText;
+import android.widget.ListView;
 import android.widget.TextView;
 
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
-import java.lang.reflect.Array;
 import java.net.Inet4Address;
 import java.net.InetAddress;
 import java.net.NetworkInterface;
@@ -22,19 +26,23 @@ import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Enumeration;
+import java.util.HashMap;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public class MainActivity extends AppCompatActivity {
-public static final String Dest_IP = "YOUR dest IP";
-public static final int Dest_Port = 12000;  //ENTER whatever your dest port is
+public String Dest_IP = null;
+public int Dest_Port;
 public Socket socket;
 public TextView response;
 public TextView info;
+public ListView list;
 public String message;
-public String Source_IP = "null";
+public String Source_IP = null;
 public int Source_Port = 1201;  //random port number
-public String dir_IP = "YOUR DIR IP";
+public String dir_IP = "192.168.1.25";
 public int dir_port = 12000;
+public ArrayList<String> dir_list;
 public ArrayList<String> nodes;
 
 
@@ -45,12 +53,25 @@ public ArrayList<String> nodes;
 
         response = (TextView)findViewById(R.id.textView);
         info = (TextView)findViewById(R.id.textView3);
+        list = (ListView)findViewById(R.id.listview);
+
+
         Source_IP = getLocalIpAddress();
         info.setText(Source_IP);
-        nodes = new ArrayList<String>();
+        dir_list = new ArrayList<>();
+        nodes = new ArrayList<>();
+        nodes.add("null");
+
+        ArrayAdapter adapter = new ArrayAdapter(this, android.R.layout.simple_list_item_1, nodes);
+        list.setAdapter(adapter);
 
         new Thread(new RecThread()).start();
         dirConnect();
+
+        list.setOnItemClickListener((parent, view, position, id) -> {
+            Dest_IP = dir_list.get(position*2);
+            Dest_Port = Integer.parseInt(dir_list.get(position*2+1));
+        });
     }
 
     public void dirConnect(){
@@ -88,17 +109,17 @@ public ArrayList<String> nodes;
                     input = new BufferedReader(new InputStreamReader(socket.getInputStream()));
                     output = new PrintWriter(socket.getOutputStream());
                     final String recMsg = input.readLine();
-                    runOnUiThread(()->{response.setText(recMsg);});
                     if(recMsg.equals("PING")){
                         output.write("ACK");
                         output.flush();
                         socket.shutdownOutput();
                     }
+                    else{runOnUiThread(()-> response.setText(recMsg));}
                     socket.close();
                 }
 
             } catch (IOException e) {
-                response.setText("server socket io err");
+                runOnUiThread(()-> response.setText("server socket io err"));
             }
         }
     }
@@ -116,34 +137,49 @@ public ArrayList<String> nodes;
         }
         @Override
         public void run() {
-            InetAddress destIP = null;
-            PrintWriter outputSend;
-            BufferedReader inputSend;
-            try {
-                destIP = InetAddress.getByName(dest_ip);
-            } catch (UnknownHostException e) {
-                response.setText("Error ip");
-            }
-            try {
-                socket = new Socket(destIP, dest_port);
-                outputSend = new PrintWriter(socket.getOutputStream());
-                inputSend = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-                outputSend.write(message);
-                outputSend.flush();
-                socket.shutdownOutput();
-                if(access_arr == 1){    //if requesting connection or update from directory, update node list
-                    String temp = inputSend.readLine();
-                    nodes.clear();
-                    nodes = new ArrayList<String>(Arrays.asList(temp.split(" ")));
+            if(dest_ip == null){runOnUiThread(()-> response.setText("Choose destination"));}
+            else {
+                InetAddress destIP = null;
+                PrintWriter outputSend;
+                BufferedReader inputSend;
+                try {
+                    destIP = InetAddress.getByName(dest_ip);
+                } catch (UnknownHostException e) {
+                    runOnUiThread(()-> response.setText("Error ip"));
                 }
-            } catch (IOException e) {
-                response.setText("Error IO");
+                try {
+                    socket = new Socket(destIP, dest_port);
+                    outputSend = new PrintWriter(socket.getOutputStream());
+                    inputSend = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+                    outputSend.write(message);
+                    outputSend.flush();
+                    socket.shutdownOutput();
+                    if (access_arr == 1) {    //if requesting connection or update from directory, update node list
+                        String temp = inputSend.readLine();
+                        dir_list.clear();
+                        dir_list = new ArrayList<>(Arrays.asList(temp.split(" ")));
+                        updateNodeList();
+                    }
+                } catch (IOException e) {
+                    runOnUiThread(()-> response.setText("Error IO"));
+                }
             }
-            int i = 0;
         }
     }
 
-
+    //update list of nodes used for displaying to listview
+    public void updateNodeList(){
+        nodes.clear();
+        int x = 0;
+        for(int i = 0; i < dir_list.size(); i+=2){
+            nodes.add(dir_list.get(i) + " " + dir_list.get(i+1));
+        }
+        runOnUiThread(()->{
+            ArrayAdapter adapter = (ArrayAdapter)list.getAdapter();
+            adapter.addAll();
+            adapter.notifyDataSetChanged();
+        });
+    }
 
 
     //gotten from https://stackoverflow.com/questions/6064510/how-to-get-ip-address-of-the-device-from-code
@@ -160,7 +196,9 @@ public ArrayList<String> nodes;
             }
         } catch (SocketException ex) {
             response.setText("ex");
+            runOnUiThread(()-> response.setText("ex"));
         }
         return null;
     }
+
 }
