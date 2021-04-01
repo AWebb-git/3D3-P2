@@ -117,10 +117,19 @@ public ArrayList<String> nodes;
                     input = new BufferedReader(new InputStreamReader(socket.getInputStream()));
                     output = new PrintWriter(socket.getOutputStream());
                     final String recMsg = input.readLine();
-                    if(recMsg.equals("PING")){
+                    ArrayList<String> recVals = msgSeperator(recMsg);
+                    if(recVals.get(0).equals("PING")){
                         output.write("ACK");
                         output.flush();
                         socket.shutdownOutput();
+                    }
+                    else if(recVals.size() > 0){
+                        runOnUiThread(()-> response.setText("Relaying"));
+                        Socket relaySocket = new Socket(recVals.get(0), Integer.parseInt(recVals.get(1)));
+                        PrintWriter relayOutput = new PrintWriter(relaySocket.getOutputStream());
+                        relayOutput.write(recVals.get(2));
+                        relayOutput.flush();
+                        relaySocket.close();
                     }
                     else{runOnUiThread(()-> response.setText(recMsg));}
                     socket.close();
