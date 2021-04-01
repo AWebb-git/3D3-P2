@@ -25,10 +25,13 @@ import java.net.SocketException;
 import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.stream.IntStream;
 
 public class MainActivity extends AppCompatActivity {
 public String Dest_IP = null;
@@ -39,8 +42,8 @@ public TextView info;
 public ListView list;
 public String message;
 public String Source_IP = null;
-public int Source_Port = 1201;  //random port number
-public String dir_IP = "192.168.1.25";
+public int Source_Port = 1201;
+public String dir_IP = "192.168.1.25";  //ENTER you own directory IP
 public int dir_port = 12000;
 public ArrayList<String> dir_list;
 public ArrayList<String> nodes;
@@ -92,9 +95,14 @@ public ArrayList<String> nodes;
 
     //runs on button click
     public void sendMsgBtn(View view){
-        EditText msg = (EditText)findViewById(R.id.EditText);
-        message = msg.getText().toString().trim();
-        new Thread(new SendThread(message, Dest_IP, Dest_Port, 0)).start();
+        if(dir_list.size()<6){runOnUiThread(()-> response.setText("Not enough relays"));}
+        else {
+            EditText msg = (EditText) findViewById(R.id.EditText);
+            message = msg.getText().toString().trim();
+            String sendMsg = msgConfig();
+            ArrayList<String> sendArr = msgSeperator(sendMsg);
+            new Thread(new SendThread(sendArr.get(2), sendArr.get(0), Integer.parseInt(sendArr.get(1)), 0)).start();
+        }
     }
 
     class RecThread implements Runnable{
@@ -181,6 +189,59 @@ public ArrayList<String> nodes;
         });
     }
 
+    public String msgConfig(){
+        View view = null;    //dummy View to call dirUpdate
+        dirUpdate(view);
+        ArrayList<String> relays = new ArrayList<>();
+        ArrayList<Integer>indexes = new ArrayList<>();
+        for(int i = 1; i < dir_list.size(); i+=2){ indexes.add(i);}
+        Collections.shuffle(indexes);
+        int rNum;
+        while(relays.size() < 2){
+           rNum = indexes.remove(0);
+           String posPort = dir_list.get(rNum);
+           String posIP = dir_list.get(rNum - 1);
+
+           if(!(posIP.equals(Source_IP)) && !(posIP.equals("127.0.0.1")) && !(posIP.equals(Dest_IP))){
+               relays.add(posIP);
+               relays.add(posPort);
+           }
+           else if(!(posPort.equals(String.valueOf(Source_Port))) && !(posPort.equals(String.valueOf(Dest_Port)))){
+               relays.add(posIP);
+               relays.add(posPort);
+           }
+        }
+        relays.add(Dest_IP);
+        relays.add(String.valueOf(Dest_Port));
+        relays.add(message);
+
+        String finMsg = "";
+        for(int i = 0; i < relays.size() - 1; i++){
+            finMsg += relays.get(i) + ";";
+        }
+
+        finMsg += relays.get(relays.size() - 1);
+
+        return finMsg;
+    }
+
+    public ArrayList<String> msgSeperator(String msg){
+        String cells[] = msg.split(";");
+        ArrayList<String> rVals= new ArrayList<>();
+        if(cells.length > 1){
+            String nMsg  = "";
+            for(int i = 2; i < cells.length - 1; i++){nMsg+=cells[i] + ";";}    //recombine
+            nMsg += cells[cells.length - 1];
+            rVals.add(cells[0]);
+            rVals.add(cells[1]);
+            rVals.add(nMsg);
+            return rVals;
+        }
+        else{
+            rVals.add(msg);
+            return rVals;
+        }
+    }
 
     //gotten from https://stackoverflow.com/questions/6064510/how-to-get-ip-address-of-the-device-from-code
     public String getLocalIpAddress() {
