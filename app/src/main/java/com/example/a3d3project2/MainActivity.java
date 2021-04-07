@@ -57,7 +57,7 @@ public ArrayList<String> nodes;
         response = (TextView)findViewById(R.id.textView);
         info = (TextView)findViewById(R.id.textView3);
         list = (ListView)findViewById(R.id.listview);
-
+        dir_IP =  getIntent().getStringExtra("DirectoryIP");
         Source_IP = getLocalIpAddress();
         info.setText(Source_IP);
         dir_list = new ArrayList<>();
