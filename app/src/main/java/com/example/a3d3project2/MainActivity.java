@@ -11,6 +11,7 @@ import android.widget.BaseAdapter;
 import android.widget.EditText;
 import android.widget.ListView;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -43,11 +44,10 @@ public ListView list;
 public String message;
 public String Source_IP = null;
 public int Source_Port = 1201;
-public String dir_IP = "192.168.1.25";  //ENTER you own directory IP
+public String dir_IP  ;  //ENTER you own directory IP
 public int dir_port = 12000;
 public ArrayList<String> dir_list;
 public ArrayList<String> nodes;
-
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -58,6 +58,7 @@ public ArrayList<String> nodes;
         info = (TextView)findViewById(R.id.textView3);
         list = (ListView)findViewById(R.id.listview);
 
+        dir_IP = BuildConfig.direc_Ip;  // comment here if autoget isn't working and add above
 
         Source_IP = getLocalIpAddress();
         info.setText(Source_IP);
@@ -76,6 +77,7 @@ public ArrayList<String> nodes;
             Dest_Port = Integer.parseInt(dir_list.get(position*2+1));
         });
     }
+
 
     public void dirConnect(){
         String portMsg = String.valueOf(Source_Port);
