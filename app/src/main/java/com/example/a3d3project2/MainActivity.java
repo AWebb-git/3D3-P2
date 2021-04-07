@@ -1,8 +1,10 @@
 package com.example.a3d3project2;
 
+import androidx.annotation.RequiresApi;
 import androidx.appcompat.app.AppCompatActivity;
 
 import android.content.Context;
+import android.os.Build;
 import android.os.Bundle;
 import android.view.View;
 import android.widget.AdapterView;
@@ -23,6 +25,7 @@ import java.net.NetworkInterface;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.SocketException;
+import java.net.SocketTimeoutException;
 import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -31,13 +34,13 @@ import java.util.Collections;
 import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.IntStream;
 
 public class MainActivity extends AppCompatActivity {
 public String Dest_IP = null;
 public int Dest_Port;
-public Socket socket;
 public TextView response;
 public TextView info;
 public ListView list;
@@ -45,9 +48,9 @@ public String message;
 public String Source_IP = null;
 public int Source_Port = 1201;
 public String dir_IP  ;  //ENTER you own directory IP
-public int dir_port = 12000;
-public ArrayList<String> dir_list;
-public ArrayList<String> nodes;
+public int dir_port = 1201;
+public ArrayList<String> dir_list;  //array list containing [ip1,port1,ip2,port2,...]
+public ArrayList<String> nodes;     //array list containing ["ip1 port1","ip2 port2",...] used for arrayadapter
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -61,14 +64,18 @@ public ArrayList<String> nodes;
         Source_IP = getLocalIpAddress();
         info.setText(Source_IP);
         dir_list = new ArrayList<>();
+        dir_list.add(Source_IP);
+        dir_list.add(Integer.toString(Source_Port));
         nodes = new ArrayList<>();
-        nodes.add("null");
 
         ArrayAdapter adapter = new ArrayAdapter(this, android.R.layout.simple_list_item_1, nodes);
         list.setAdapter(adapter);
+        updateNodeList();
 
         new Thread(new RecThread()).start();
         dirConnect();
+        new Thread(new pingThread()).start();
+
 
         list.setOnItemClickListener((parent, view, position, id) -> {
             Dest_IP = dir_list.get(position*2);
@@ -78,13 +85,15 @@ public ArrayList<String> nodes;
 
 
     public void dirConnect(){
-        String portMsg = String.valueOf(Source_Port);
+        String portMsg = "€PORT:" + String.valueOf(Source_Port);
         new Thread(new SendThread(portMsg, dir_IP, dir_port, 1)).start();
     }
 
     public void dirUpdate(View view){
-        String updateMsg = "Update";
-        new Thread(new SendThread(updateMsg, dir_IP, dir_port, 1)).start();
+        for(int i = 0; i < dir_list.size(); i+=2) {
+            new Thread(new SendThread("Update", dir_list.get(i),
+                    Integer.parseInt(dir_list.get(i+1)), 1)).start();
+        }
     }
 
     public void dirExit(View view){
@@ -105,6 +114,26 @@ public ArrayList<String> nodes;
         }
     }
 
+    class pingThread implements Runnable{
+        public int i = 0;
+        @Override
+        public void run() {
+            while (true){
+                try {
+                    TimeUnit.SECONDS.sleep(3); //could decrease to microseconds ***deal with int overflow then
+                    if(dir_list.size() > 0){
+                        String pingIp = dir_list.get((i*2)%dir_list.size());
+                        String pingPort = dir_list.get(((i*2)+1)%dir_list.size());
+                        new Thread(new SendThread("PING", pingIp, Integer.parseInt(pingPort), 2)).start();
+                    }
+                } catch (InterruptedException e) {
+                    runOnUiThread(()->response.setText("Interrupted ping delay"));
+                }
+                i++;
+            }
+        }
+    }
+
     class RecThread implements Runnable{
         @Override
         public void run() {
@@ -120,6 +149,23 @@ public ArrayList<String> nodes;
                     ArrayList<String> recVals = msgSeperator(recMsg);
                     if(recVals.get(0).equals("PING")){
                         output.write("ACK");
+                        output.flush();
+                        socket.shutdownOutput();
+                    }
+                    else if(recMsg.startsWith("€PORT:")){
+                        String newPort = recMsg.split("€PORT:")[1];
+                        String newIP = socket.getInetAddress().toString().split("/")[1];
+                        output.write(listmsg());
+                        output.flush();
+                        socket.shutdownOutput();
+                        if(!dir_list.contains(newIP)){
+                            dir_list.add(newIP);
+                            dir_list.add(newPort);
+                        }
+                        updateNodeList();
+                    }
+                    else if(recMsg.equals("Update")){
+                        output.write(listmsg());
                         output.flush();
                         socket.shutdownOutput();
                     }
@@ -150,7 +196,7 @@ public ArrayList<String> nodes;
         private String message;
         private String dest_ip;
         private int dest_port;
-        private int access_arr; //if one update nodes arraylist
+        private int access_arr; //if 1 update nodes arraylist, if 2 send ping
         SendThread(String message, String dest_ip, int dest_port, int access_arr){
             this.message = message;
             this.dest_ip = dest_ip;
@@ -170,7 +216,8 @@ public ArrayList<String> nodes;
                     runOnUiThread(()-> response.setText("Error ip"));
                 }
                 try {
-                    socket = new Socket(destIP, dest_port);
+                    Socket socket = new Socket(destIP, dest_port);
+                    if(access_arr == 2){socket.setSoTimeout(2*10000);}
                     outputSend = new PrintWriter(socket.getOutputStream());
                     inputSend = new BufferedReader(new InputStreamReader(socket.getInputStream()));
                     outputSend.write(message);
@@ -178,13 +225,38 @@ public ArrayList<String> nodes;
                     socket.shutdownOutput();
                     if (access_arr == 1) {    //if requesting connection or update from directory, update node list
                         String temp = inputSend.readLine();
-                        dir_list.clear();
-                        dir_list = new ArrayList<>(Arrays.asList(temp.split(" ")));
+                        ArrayList<String>  newList = new ArrayList<>(Arrays.asList(temp.split(" ")));
+                        addNewNodes(newList);
                         updateNodeList();
                     }
+                    else if (access_arr == 2){
+                        String ACK = inputSend.readLine(); //could implement ACK handling???
+                    }
                 } catch (IOException e) {
-                    runOnUiThread(()-> response.setText("Error IO"));
+                    if(access_arr == 2){//remove node
+                        removeNode(dest_ip);
+                        updateNodeList();
+                    }
+                    else{runOnUiThread(()-> response.setText("Error IO"));}
                 }
+            }
+        }
+    }
+
+    public void addNewNodes(ArrayList<String> newNodes){
+        for(int i = 0; i < newNodes.size(); i+=2){
+            if(!dir_list.contains(newNodes.get(i))){
+                dir_list.add(newNodes.get(i));
+                dir_list.add(newNodes.get(i+1));
+            }
+        }
+    }
+
+    public void removeNode(String IP){
+        for(int i = 0; i < dir_list.size(); i++){
+            if(dir_list.get(i).equals(IP)){
+                dir_list.remove(i+1);
+                dir_list.remove(i);
             }
         }
     }
@@ -201,6 +273,15 @@ public ArrayList<String> nodes;
             adapter.addAll();
             adapter.notifyDataSetChanged();
         });
+    }
+
+    public String listmsg(){    //create string of dir_list
+        StringBuilder lMsg = new StringBuilder("");
+        for(int i = 0; i < dir_list.size() - 1; i++){
+            lMsg.append(dir_list.get(i) + " ");
+        }
+        lMsg.append(dir_list.get(dir_list.size() - 1));
+        return lMsg.toString();
     }
 
     public String msgConfig(){

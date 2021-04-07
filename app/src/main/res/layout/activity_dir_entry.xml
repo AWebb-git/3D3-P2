@@ -10,7 +10,7 @@
         android:id="@+id/textView2"
         android:layout_width="214dp"
         android:layout_height="41dp"
-        android:text="Enter Directory IP address"
+        android:text="Enter Directory IP address, If None Enter Your Own IP"
         android:textSize="18sp"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
