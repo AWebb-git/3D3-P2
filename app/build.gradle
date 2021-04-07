@@ -5,35 +5,6 @@ plugins {
 }
 
 android {
-    /** from https://stackoverflow.com/questions/28693780/android-studio-get-build-machines-ip-address-into-android-app
-     * Find the first LAN address of the development machine.
-     */
-    // unfortunately virtual machines ips are returned instead of the normal one with get local address, therefore ifs
-    def getDevHost = { ->
-        def first = 0
-        def defaultDevHost = Inet4Address.getLocalHost().hostAddress
-        for (NetworkInterface networkInterface : Collections.list(NetworkInterface.getNetworkInterfaces())) {
-            if (!networkInterface.isVirtual()  && !networkInterface.isLoopback() && !networkInterface.isPointToPoint() && !networkInterface.getName().startsWith("wla")
-            &&    !networkInterface.getDisplayName().startsWith("V")){ // <- this one could cause issues
-                if ( networkInterface.inetAddresses.hasMoreElements() == true) {
-                    if (first == 0) {
-                        return networkInterface.inetAddresses.nextElement().hostAddress // should end up with LAN address to use for Dir_IP
-                    }
-                    else    // resisdual code to help cycle through whats returned
-                        first = first + 1
-                }
-
-
-            }
-        }
-        return null
-
-
-
-
-
-
-    }
     compileSdkVersion 30
     buildToolsVersion "30.0.3"
 
@@ -43,7 +14,6 @@ android {
         targetSdkVersion 30
         versionCode 1
         versionName "1.0"
-        buildConfigField "String", "direc_Ip", "\"${getDevHost()}\""
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
     }
 

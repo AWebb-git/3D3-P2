@@ -42,7 +42,7 @@ def listen_thread():
         connectionSocket, addr = serverSocket.accept()
         senderPort = connectionSocket.recv(1024).decode()
         
-        if addrArr.count(senderPort) == 0:  
+        if (addrArr.count(senderPort) == 0) or (addrArr.count(addr[0]) == 0):
             if (senderPort != 'Update'):    #add to list
                 arrLock.acquire()
                 addrArr.append(addr[0])
@@ -74,7 +74,7 @@ def ping_thread():
                 pingSocket.connect((pingIP,pingPort))
                 pingSocket.send('PING\n'.encode())
                 ACK = pingSocket.recv(1024).decode()
-            except (socket.timeout, ConnectionRefusedError):  #if timeout connecting/sending/recieving, remove from directory
+            except (socket.timeout, ConnectionRefusedError, ConnectionResetError):  #if timeout connecting/sending/recieving, remove from directory
                 print('Lost Node: ' + pingIP + ' ', pingPort)
                 removeNode(str(pingPort), pingIP)
             pingSocket.close()

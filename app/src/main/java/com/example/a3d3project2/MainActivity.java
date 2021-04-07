@@ -58,8 +58,6 @@ public ArrayList<String> nodes;
         info = (TextView)findViewById(R.id.textView3);
         list = (ListView)findViewById(R.id.listview);
 
-        dir_IP = BuildConfig.direc_Ip;  // comment here if autoget isn't working and add above
-
         Source_IP = getLocalIpAddress();
         info.setText(Source_IP);
         dir_list = new ArrayList<>();
@@ -125,15 +123,20 @@ public ArrayList<String> nodes;
                         output.flush();
                         socket.shutdownOutput();
                     }
-                    else if(recVals.size() > 0){
+                    else if(recVals.size() > 1){//relay
                         runOnUiThread(()-> response.setText("Relaying"));
                         Socket relaySocket = new Socket(recVals.get(0), Integer.parseInt(recVals.get(1)));
                         PrintWriter relayOutput = new PrintWriter(relaySocket.getOutputStream());
-                        relayOutput.write(recVals.get(2));
+                        int trashAmount = recVals.get(0).length() + recVals.get(1).length() + 2;
+                        String nMsg = addTrash(recVals.get(2), trashAmount);
+                        relayOutput.write(nMsg);
                         relayOutput.flush();
                         relaySocket.close();
                     }
-                    else{runOnUiThread(()-> response.setText(recMsg));}
+                    else{
+                        String finMsg = recMsg.split("£€%%")[0];
+                        runOnUiThread(()-> response.setText(finMsg));
+                    }
                     socket.close();
                 }
 
@@ -252,6 +255,13 @@ public ArrayList<String> nodes;
             rVals.add(msg);
             return rVals;
         }
+    }
+
+    public String addTrash(String msg, int amount){
+        StringBuilder nMsg = new StringBuilder(msg);
+        nMsg.append("£€%%");
+        for(int i = 0; i < amount - 4; i++){ nMsg.append('0');}
+        return nMsg.toString();
     }
 
     //gotten from https://stackoverflow.com/questions/6064510/how-to-get-ip-address-of-the-device-from-code
