@@ -51,6 +51,7 @@ public String dir_IP  ;  //ENTER you own directory IP
 public int dir_port = 1201;
 public ArrayList<String> dir_list;  //array list containing [ip1,port1,ip2,port2,...]
 public ArrayList<String> nodes;     //array list containing ["ip1 port1","ip2 port2",...] used for arrayadapter
+public ServerSocket serverSocket;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -96,9 +97,12 @@ public ArrayList<String> nodes;     //array list containing ["ip1 port1","ip2 po
         }
     }
 
-    public void dirExit(View view){
-        String portMsg = String.valueOf(Source_Port);
-        new Thread(new SendThread(portMsg, dir_IP, dir_port, 0)).start();
+    public void dirExit(View view) throws IOException {
+        for(int i = 0; i < dir_list.size(); i+=2) {
+            new Thread(new SendThread("QUIT", dir_list.get(i),
+                    Integer.parseInt(dir_list.get(i+1)), 0)).start();
+        }
+        serverSocket.close();
         finishAndRemoveTask();
     }
 
@@ -140,17 +144,22 @@ public ArrayList<String> nodes;     //array list containing ["ip1 port1","ip2 po
             BufferedReader input;
             PrintWriter output;
             try{
-                ServerSocket serverSocket = new ServerSocket(Source_Port);
+                serverSocket = new ServerSocket(Source_Port);
                 while(true) {
                     Socket socket = serverSocket.accept();
                     input = new BufferedReader(new InputStreamReader(socket.getInputStream()));
                     output = new PrintWriter(socket.getOutputStream());
                     final String recMsg = input.readLine();
                     ArrayList<String> recVals = msgSeperator(recMsg);
-                    if(recVals.get(0).equals("PING")){
+                    if(recMsg.equals("PING")){  //respond to ping
                         output.write("ACK");
                         output.flush();
                         socket.shutdownOutput();
+                    }
+                    else if(recMsg.equals("QUIT")){
+                        String newIP = socket.getInetAddress().toString().split("/")[1];
+                        removeNode(newIP);
+                        updateNodeList();
                     }
                     else if(recMsg.startsWith("€PORT:")){
                         String newPort = recMsg.split("€PORT:")[1];
