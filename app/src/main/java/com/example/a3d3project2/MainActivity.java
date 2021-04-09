@@ -73,9 +73,9 @@ public ServerSocket serverSocket;
         list.setAdapter(adapter);
         updateNodeList();
 
-        new Thread(new RecThread()).start();
-        dirConnect();
-        new Thread(new pingThread()).start();
+        new Thread(new RecThread()).start();    //thread for receiving messages
+        dirConnect();   //connect to node specified in dirEntry page
+        new Thread(new pingThread()).start();   //start checking availability of nodes in dir_list
 
 
         list.setOnItemClickListener((parent, view, position, id) -> {
@@ -84,12 +84,13 @@ public ServerSocket serverSocket;
         });
     }
 
-
+    //send initial connection request to specified node
     public void dirConnect(){
         String portMsg = "€PORT:" + String.valueOf(Source_Port);
         new Thread(new SendThread(portMsg, dir_IP, dir_port, 1)).start();
     }
 
+    //ask for updates of available nodes from all current nodes in dir_list
     public void dirUpdate(View view){
         for(int i = 0; i < dir_list.size(); i+=2) {
             new Thread(new SendThread("Update", dir_list.get(i),
@@ -97,12 +98,13 @@ public ServerSocket serverSocket;
         }
     }
 
+    //tell all nodes in list to remove this client from their list, then quit activity
     public void dirExit(View view) throws IOException {
         for(int i = 0; i < dir_list.size(); i+=2) {
             new Thread(new SendThread("QUIT", dir_list.get(i),
                     Integer.parseInt(dir_list.get(i+1)), 0)).start();
         }
-        serverSocket.close();
+        serverSocket.close();   //close socket for receiving messages
         finishAndRemoveTask();
     }
 
@@ -118,14 +120,15 @@ public ServerSocket serverSocket;
         }
     }
 
+    //thread to check availability of current nodes in dir_list
     class pingThread implements Runnable{
         public int i = 0;
         @Override
         public void run() {
             while (true){
                 try {
-                    TimeUnit.SECONDS.sleep(3); //could decrease to microseconds ***deal with int overflow then
-                    if(dir_list.size() > 0){
+                    TimeUnit.SECONDS.sleep(3); //could decrease to microseconds ***deal with int i overflow then
+                    if(dir_list.size() > 0){    //iterate through list
                         String pingIp = dir_list.get((i*2)%dir_list.size());
                         String pingPort = dir_list.get(((i*2)+1)%dir_list.size());
                         new Thread(new SendThread("PING", pingIp, Integer.parseInt(pingPort), 2)).start();
@@ -156,12 +159,12 @@ public ServerSocket serverSocket;
                         output.flush();
                         socket.shutdownOutput();
                     }
-                    else if(recMsg.equals("QUIT")){
+                    else if(recMsg.equals("QUIT")){ //remove node from this nodes list
                         String newIP = socket.getInetAddress().toString().split("/")[1];
                         removeNode(newIP);
                         updateNodeList();
                     }
-                    else if(recMsg.startsWith("€PORT:")){
+                    else if(recMsg.startsWith("€PORT:")){   //add new node to this nodes list
                         String newPort = recMsg.split("€PORT:")[1];
                         String newIP = socket.getInetAddress().toString().split("/")[1];
                         output.write(listmsg());
@@ -173,7 +176,7 @@ public ServerSocket serverSocket;
                         }
                         updateNodeList();
                     }
-                    else if(recMsg.equals("Update")){
+                    else if(recMsg.equals("Update")){   //send node copy of this nodes list
                         output.write(listmsg());
                         output.flush();
                         socket.shutdownOutput();
@@ -188,7 +191,7 @@ public ServerSocket serverSocket;
                         relayOutput.flush();
                         relaySocket.close();
                     }
-                    else{
+                    else{   //receive message
                         String finMsg = recMsg.split("£€%%")[0];
                         runOnUiThread(()-> response.setText(finMsg));
                     }
@@ -226,7 +229,7 @@ public ServerSocket serverSocket;
                 }
                 try {
                     Socket socket = new Socket(destIP, dest_port);
-                    if(access_arr == 2){socket.setSoTimeout(2*10000);}
+                    if(access_arr == 2){socket.setSoTimeout(2*10000);}  //set timeout to receive ping ack
                     outputSend = new PrintWriter(socket.getOutputStream());
                     inputSend = new BufferedReader(new InputStreamReader(socket.getInputStream()));
                     outputSend.write(message);
@@ -239,12 +242,12 @@ public ServerSocket serverSocket;
                         updateNodeList();
                     }
                     else if (access_arr == 2){
-                        String ACK = inputSend.readLine(); //could implement ACK handling???
+                        String ACK = inputSend.readLine(); //could implement further ACK handling?
                     }
                 } catch (IOException e) {
-                    if(access_arr == 2){//remove node
+                    if(access_arr == 2){    //remove node
                         removeNode(dest_ip);
-                        updateNodeList();
+                        updateNodeList();   //tell arrayadapter (on-screen list) to change
                     }
                     else{runOnUiThread(()-> response.setText("Error IO"));}
                 }
@@ -252,15 +255,17 @@ public ServerSocket serverSocket;
         }
     }
 
+    //check received list for any new node
     public void addNewNodes(ArrayList<String> newNodes){
         for(int i = 0; i < newNodes.size(); i+=2){
-            if(!dir_list.contains(newNodes.get(i))){
+            if(!dir_list.contains(newNodes.get(i))){    //if a node in received list is new, add to our list
                 dir_list.add(newNodes.get(i));
                 dir_list.add(newNodes.get(i+1));
             }
         }
     }
 
+    //remove a node from our list
     public void removeNode(String IP){
         for(int i = 0; i < dir_list.size(); i++){
             if(dir_list.get(i).equals(IP)){
@@ -301,7 +306,7 @@ public ServerSocket serverSocket;
         for(int i = 1; i < dir_list.size(); i+=2){ indexes.add(i);}
         Collections.shuffle(indexes);
         int rNum;
-        while(relays.size() < 2){
+        while(relays.size() < 2){   //while 1 relay hasn't been chosen
            rNum = indexes.remove(0);
            String posPort = dir_list.get(rNum);
            String posIP = dir_list.get(rNum - 1);
@@ -329,6 +334,7 @@ public ServerSocket serverSocket;
         return finMsg;
     }
 
+    //seperates a list message into a list
     public ArrayList<String> msgSeperator(String msg){
         String cells[] = msg.split(";");
         ArrayList<String> rVals= new ArrayList<>();
@@ -347,6 +353,7 @@ public ServerSocket serverSocket;
         }
     }
 
+    //for keeping messages a fixed length between relays
     public String addTrash(String msg, int amount){
         StringBuilder nMsg = new StringBuilder(msg);
         nMsg.append("£€%%");
