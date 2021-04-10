@@ -1,4 +1,5 @@
 import socket
+import time
 import random
 import threading
 from threading import Thread
@@ -10,16 +11,21 @@ destArr = []
 
 #update list of avaible addresses and ports
 def arrUpdate(arr):
-    arrLock.acquire()
-    global destArr
-    destArr.clear()
-    destArr = arr.split()
-    arrLock.release()
+    newlist = []
+    newlist = arr.split()
+    for x in newlist[::2]:
+        arrLock.acquire()
+        if x not in destArr:
+            destArr.append(x)
+            destArr.append(newlist[newlist.index(x) + 1])
+        arrLock.release()
+
 
 def arrPrint():
     arrLock.acquire()
     printLock.acquire()
     i = 0
+    print('\n')
     for x in destArr:
         if i%2 == 0:
             print(int(i/2), ':', end=' ')
@@ -27,42 +33,84 @@ def arrPrint():
         if i%2:
             print()
         i+=1
-    
+
     arrLock.release()
-    printLock.release() 
-    
+    printLock.release()
+
+def removeNode(port, IP):
+    arrLock.acquire()
+    occurences = [x for x, i in enumerate(destArr) if i == port]    #find indexs where port occurs
+    arrLock.release()
+    x = 0
+    while True:
+        arrLock.acquire()
+        if destArr[occurences[x] - 1] == IP:   #if IP also matches delete IP and Port
+            destArr.pop(occurences[x])
+            destArr.pop(occurences[x]-1)
+            arrLock.release()
+            arrPrint()
+            break
+        x+=1
+        arrLock.release()
+
+#thread to send pings to check availibility of nodes in directory
+def ping_thread():
+    i = 0
+    while True:
+        time.sleep(3)   #delay to avoid network congestion at relays
+        arrLock.acquire()
+        if len(destArr) > 0:
+            pingSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            pingSocket.settimeout(10)   #setting timeout for sending/recieving messages
+            pingPort = int(destArr[((i*2)+1)%len(destArr)])
+            pingIP = destArr[(i*2)%len(destArr)]
+            arrLock.release()
+            try:    #try send ping
+                pingSocket.connect((pingIP,pingPort))
+                pingSocket.send('PING\n'.encode())
+                ACK = pingSocket.recv(1024).decode()
+            except (socket.timeout, ConnectionRefusedError, ConnectionResetError):  #if timeout connecting/sending/recieving, remove from directory
+                print('Lost Node: ' + pingIP + ' ', pingPort)
+                removeNode(str(pingPort), pingIP)
+            pingSocket.close()
+        else:
+            arrLock.release()
+        i+=1
 
 #connect to directory
 def dirConnect():
     dirSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    dirSocket.connect((dirAddress, 12000))
-    dirSocket.send(str(serverPort).encode())
+    dirSocket.connect((dirAddress, serverPort))
+    dirSocket.send(('€PORT:' + str(serverPort) + '\n').encode())
     destList = dirSocket.recv(1024).decode()
     arrUpdate(destList)
-    arrPrint()
     dirSocket.close()
+    dirUpdate()
+    arrPrint()
 
 #request update from directory
 def dirUpdate():
-    dirSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    dirSocket.connect((dirAddress, 12000))
-    dirSocket.send('Update'.encode())
-    destList = dirSocket.recv(1024).decode()
-    arrUpdate(destList)
-    dirSocket.close()
+    for x in destArr[::2]:
+        dirSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        dirSocket.connect((x, serverPort))
+        dirSocket.send('Update\n'.encode())
+        destList = dirSocket.recv(1024).decode()
+        arrUpdate(destList)
+        dirSocket.close()
 
 #exit from directory
 def dirExit():
-    dirSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    dirSocket.connect((dirAddress, 12000))
-    dirSocket.send(str(serverPort).encode())
-    dirSocket.close()
+    for x in destArr[::2]:
+        dirSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        dirSocket.connect((x, 1201))
+        dirSocket.send('QUIT\n'.encode())
+        dirSocket.close()
 
 #wrap message with relay and destination ports/ips
 def msgConfig(msg, recvPort, recvIP):
     dirUpdate() #get up to date directory
-    relays = [] #list of relays to go to 
-    
+    relays = [] #list of relays to go to
+
     arrLock.acquire()
     indexs = list(range(len(destArr)))
     ports = indexs[1::2]
@@ -77,8 +125,8 @@ def msgConfig(msg, recvPort, recvIP):
         elif (posPort != str(serverPort) and posPort != str(recvPort)):  #if same IP, but different Port, allow
             relays.append(posIP) #IP
             relays.append(posPort) #Port
-    arrLock.release()    
-    
+    arrLock.release()
+
     relays.append(recvIP)   #last ip & port should be message recipients
     relays.append(str(recvPort))
     relays.append(msg)
@@ -87,13 +135,13 @@ def msgConfig(msg, recvPort, recvIP):
     for x in range(len(relays) - 1):    #create string of relays & msg seperated by ;
         finMsg += relays[x] + ';'
     finMsg += relays[4]
-    
-    return finMsg 
 
-#get message and if necessary next relay to send onto    
+    return finMsg
+
+#get message and if necessary next relay to send onto
 def msgSeperator(msg):
     cells = msg.split(';')
-    if len(cells) > 1:  
+    if len(cells) > 1:
         nMsg = ''
         for x in range(2,len(cells) - 1):   #recombine cells except next relay info
             nMsg += cells[x] +';'
@@ -120,11 +168,12 @@ def send_thread():
                 dirUpdate()
                 arrPrint()
             else:
+                arrPrint()
                 while True:
                     enterNum = int(input('ST: Enter client # to go to (0,1,..): '))
                     if (enterNum <= (len(destArr)/2 -1) and enterNum >= 0): #loop until valid input
                         break
-                senderPort = int(destArr[(enterNum*2)+1])   
+                senderPort = int(destArr[(enterNum*2)+1])
                 senderIP = destArr[(enterNum*2)]
                 arrLock.release()
                 printLock.acquire()
@@ -133,7 +182,7 @@ def send_thread():
                 cMsg = msgConfig(msg, senderPort, senderIP) #wrap msg
                 sendVals = msgSeperator(cMsg)   #get next relay
                 clientSocket.connect((sendVals[0], int(sendVals[1])))
-                clientSocket.send(sendVals[2].encode())
+                clientSocket.send((sendVals[2] + '\n').encode())
         elif sendReq == 'UP':
             dirUpdate()
             arrPrint()
@@ -156,17 +205,24 @@ def relay_thread():
         #decrypt msg here
 
         recVals = msgSeperator(recMsg)
-        
+
         if recVals[0] == 'QUITREQ':
             print('Quitting...')
             break
-        elif recVals[0] == 'PING\n':  #recieved ping from directory send ACK
-            connectionSocket.send('ACK'.encode())
+        elif recMsg == 'PING' or recMsg == 'PING\n':  #recieved ping from directory send ACK
+            connectionSocket.send('ACK\n'.encode())
+        elif recMsg == 'QUIT':
+            removeNode(str(1201), addr[0])
+        elif recMsg == 'Update' or recMsg == 'Update\n':
+            msg = ''
+            for x in destArr:
+                msg+= x + ' '
+            connectionSocket.send((msg + '\n').encode())
         elif len(recVals) > 1:    #send onto next relay
             print('relaying')
             relaySocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             relaySocket.connect((recVals[0], int(recVals[1])))
-            relaySocket.send(recVals[2].encode())
+            relaySocket.send((recVals[2] + '\n').encode())
             relaySocket.close()
         else:   #this is the final stop!
             printLock.acquire()
@@ -184,7 +240,10 @@ serverPort = int(input('Enter this port num  > 1023: '))    #ask for this items 
 dirConnect()
 th1 = Thread(target=relay_thread, args=())
 th2 = Thread(target=send_thread, args=())
+th3 = Thread(target=ping_thread, args=())
 th1.start()
 th2.start()
+th3.start()
 th1.join()
 th2.join()
+th3.join()
