@@ -101,7 +101,7 @@ public ServerSocket serverSocket;
     //tell all nodes in list to remove this client from their list, then quit activity
     public void dirExit(View view) throws IOException {
         for(int i = 0; i < dir_list.size(); i+=2) {
-            new Thread(new SendThread("QUIT", dir_list.get(i),
+            new Thread(new SendThread("€QUIT:" + "1201", dir_list.get(i),
                     Integer.parseInt(dir_list.get(i+1)), 0)).start();
         }
         serverSocket.close();   //close socket for receiving messages
@@ -159,9 +159,9 @@ public ServerSocket serverSocket;
                         output.flush();
                         socket.shutdownOutput();
                     }
-                    else if(recMsg.equals("QUIT")){ //remove node from this nodes list
+                    else if(recMsg.startsWith("€QUIT:")){ //remove node from this nodes list
                         String newIP = socket.getInetAddress().toString().split("/")[1];
-                        removeNode(newIP);
+                        removeNode(newIP, recMsg.split("€QUIT:")[1]);
                         updateNodeList();
                     }
                     else if(recMsg.startsWith("€PORT:")){   //add new node to this nodes list
@@ -170,7 +170,7 @@ public ServerSocket serverSocket;
                         output.write(listmsg());
                         output.flush();
                         socket.shutdownOutput();
-                        if(!dir_list.contains(newIP)){
+                        if(!dir_list.contains(newIP) || !dir_list.contains(newPort)){
                             dir_list.add(newIP);
                             dir_list.add(newPort);
                         }
@@ -223,7 +223,7 @@ public ServerSocket serverSocket;
                 PrintWriter outputSend;
                 BufferedReader inputSend;
                 try {
-                    destIP = InetAddress.getByName(dest_ip);
+                    destIP = InetAddress.getByName(dest_ip);    //convert string to INET address
                 } catch (UnknownHostException e) {
                     runOnUiThread(()-> response.setText("Error ip"));
                 }
@@ -246,7 +246,7 @@ public ServerSocket serverSocket;
                     }
                 } catch (IOException e) {
                     if(access_arr == 2){    //remove node
-                        removeNode(dest_ip);
+                        removeNode(dest_ip, Integer.toString(dest_port));
                         updateNodeList();   //tell arrayadapter (on-screen list) to change
                     }
                     else{runOnUiThread(()-> response.setText("Error IO"));}
@@ -258,7 +258,7 @@ public ServerSocket serverSocket;
     //check received list for any new node
     public void addNewNodes(ArrayList<String> newNodes){
         for(int i = 0; i < newNodes.size(); i+=2){
-            if(!dir_list.contains(newNodes.get(i))){    //if a node in received list is new, add to our list
+            if(!dir_list.contains(newNodes.get(i)) || !dir_list.contains((newNodes.get(i+1)))){    //if a node in received list is new, add to our list
                 dir_list.add(newNodes.get(i));
                 dir_list.add(newNodes.get(i+1));
             }
@@ -266,9 +266,9 @@ public ServerSocket serverSocket;
     }
 
     //remove a node from our list
-    public void removeNode(String IP){
-        for(int i = 0; i < dir_list.size(); i++){
-            if(dir_list.get(i).equals(IP)){
+    public void removeNode(String IP, String port){
+        for(int i = 0; i < dir_list.size(); i+=2){
+            if(dir_list.get(i).equals(IP) && dir_list.get(i+1).equals(port)){
                 dir_list.remove(i+1);
                 dir_list.remove(i);
             }
