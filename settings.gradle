@@ -1,2 +1,4 @@
+include ':krow'
+include ':litUotpyrC'
 include ':app'
 rootProject.name = "3d3project2"

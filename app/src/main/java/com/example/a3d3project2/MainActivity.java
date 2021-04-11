@@ -34,7 +34,9 @@ import java.util.Collections;
 import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
+import com.example.CryptoUtil.CryptoUtil;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.IntStream;
 
@@ -52,6 +54,7 @@ public int dir_port = 1201;
 public ArrayList<String> dir_list;  //array list containing [ip1,port1,ip2,port2,...]
 public ArrayList<String> nodes;     //array list containing ["ip1 port1","ip2 port2",...] used for arrayadapter
 public ServerSocket serverSocket;
+public Map keyPair;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
