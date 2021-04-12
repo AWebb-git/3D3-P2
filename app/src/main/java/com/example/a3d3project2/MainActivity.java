@@ -27,6 +27,8 @@ import java.net.Socket;
 import java.net.SocketException;
 import java.net.SocketTimeoutException;
 import java.net.UnknownHostException;
+import java.security.InvalidKeyException;
+import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -36,9 +38,12 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
-import com.example.CryptoUtil.CryptoUtil;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.IntStream;
+
+import javax.crypto.BadPaddingException;
+import javax.crypto.IllegalBlockSizeException;
+import javax.crypto.NoSuchPaddingException;
 
 public class MainActivity extends AppCompatActivity {
 public String Dest_IP = null;
@@ -80,6 +85,25 @@ public Map keyPair;
         dirConnect();   //connect to node specified in dirEntry page
         new Thread(new pingThread()).start();   //start checking availability of nodes in dir_list
 
+        //crypto util call example
+        /*
+        try {
+           Map<String, String> keyexample = new HashMap<>();
+           keyexample = CryptoUtil.generateKeyPair();
+           String s = keyexample.get("publickey");
+           info.setText(s);
+        } catch (NoSuchAlgorithmException e) {
+            e.printStackTrace();
+        } catch (NoSuchPaddingException e) {
+            e.printStackTrace();
+        } catch (InvalidKeyException e) {
+            e.printStackTrace();
+        } catch (IllegalBlockSizeException e) {
+            e.printStackTrace();
+        } catch (BadPaddingException e) {
+            e.printStackTrace();
+        }
+        */
 
         list.setOnItemClickListener((parent, view, position, id) -> {
             Dest_IP = dir_list.get(position*2);

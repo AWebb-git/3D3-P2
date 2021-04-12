@@ -1,3 +1,5 @@
+package com.example.a3d3project2;
+
 import android.util.Base64;
 
 import java.nio.charset.StandardCharsets;

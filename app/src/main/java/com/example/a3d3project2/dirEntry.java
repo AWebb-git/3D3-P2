@@ -10,7 +10,6 @@ import android.widget.Button;
 import android.widget.EditText;
 import android.widget.TextView;
 
-import com.example.CryptoUtil.CryptoUtil;
 
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
