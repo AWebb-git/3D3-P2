@@ -194,9 +194,13 @@ public Map keyPair;
                     else if(recMsg.startsWith("€PORT:")){   //add new node to this nodes list
                         String newPort = recMsg.split("€PORT:")[1];
                         String newIP = socket.getInetAddress().toString().split("/")[1];
+                        if (newIP.equals("10.0.2.2")){
+                            newIP = "192.168.192.19"; // <- your ip here
+                        }
                         output.write(listmsg());
                         output.flush();
                         socket.shutdownOutput();
+
                         if(!dir_list.contains(newIP) || !dir_list.contains(newPort)){
                             dir_list.add(newIP);
                             dir_list.add(newPort);
@@ -338,7 +342,7 @@ public Map keyPair;
            String posPort = dir_list.get(rNum);
            String posIP = dir_list.get(rNum - 1);
 
-           if(!(posIP.equals(Source_IP)) && !(posIP.equals("127.0.0.1")) && !(posIP.equals(Dest_IP))){
+           if(!(posIP.equals(Source_IP)) && !(posIP.equals("127.0.0.1")) && !((posIP.equals(Dest_IP)))){
                relays.add(posIP);
                relays.add(posPort);
            }
