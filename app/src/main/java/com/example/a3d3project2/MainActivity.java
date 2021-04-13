@@ -109,7 +109,8 @@ public ArrayList<String> nodes;
                     break;
                 }
                 else {
-                    System.out.println("Error, message to long!!!");
+                    runOnUiThread(()-> response.setText("Error, message too long!!!"));
+                    break;
                 }
             }
 
