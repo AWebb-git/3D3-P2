@@ -42,6 +42,7 @@ public TextView response;
 public TextView info;
 public ListView list;
 public String message;
+public int maxlength = 140;
 public String Source_IP = null;
 public int Source_Port = 1201;
 public String dir_IP  ;  //ENTER you own directory IP
@@ -97,11 +98,26 @@ public ArrayList<String> nodes;
     public void sendMsgBtn(View view){
         if(dir_list.size()<6){runOnUiThread(()-> response.setText("Not enough relays"));}
         else {
-            EditText msg = (EditText) findViewById(R.id.EditText);
+
+            while(true){
+                EditText msg = (EditText) findViewById(R.id.EditText);
+                message = msg.getText().toString().trim();
+                if(message.length() < maxlength){
+                    String sendMsg = msgConfig();
+                    ArrayList<String> sendArr = msgSeperator(sendMsg);
+                    new Thread(new SendThread(sendArr.get(2), sendArr.get(0), Integer.parseInt(sendArr.get(1)), 0)).start();
+                    break;
+                }
+                else {
+                    System.out.println("Error, message to long!!!");
+                }
+            }
+
+             /*EditText msg = (EditText) findViewById(R.id.EditText);
             message = msg.getText().toString().trim();
             String sendMsg = msgConfig();
             ArrayList<String> sendArr = msgSeperator(sendMsg);
-            new Thread(new SendThread(sendArr.get(2), sendArr.get(0), Integer.parseInt(sendArr.get(1)), 0)).start();
+            new Thread(new SendThread(sendArr.get(2), sendArr.get(0), Integer.parseInt(sendArr.get(1)), 0)).start();*/
         }
     }
 
@@ -244,7 +260,9 @@ public ArrayList<String> nodes;
         ArrayList<String> rVals= new ArrayList<>();
         if(cells.length > 1){
             String nMsg  = "";
-            for(int i = 2; i < cells.length - 1; i++){nMsg+=cells[i] + ";";}    //recombine
+            for(int i = 2; i < cells.length - 1; i++){
+                nMsg+=cells[i] + ";";
+            }    //recombine
             nMsg += cells[cells.length - 1];
             rVals.add(cells[0]);
             rVals.add(cells[1]);
