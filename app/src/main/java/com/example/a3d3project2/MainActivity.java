@@ -51,7 +51,7 @@ public int dir_port = 1201;
 public ArrayList<String> dir_list;  //array list containing [ip1,port1,ip2,port2,...]
 public ArrayList<String> nodes;     //array list containing ["ip1 port1","ip2 port2",...] used for arrayadapter
 public ServerSocket serverSocket;
-public Map keyPair;
+public Map<String, String> keyPair;
 public String recKey;
 //ENCRYPTION COMMENTS on LINES 76, 170, 268, 338, 348, 202
 
@@ -89,6 +89,12 @@ public String recKey;
             e.printStackTrace();
         }
 
+        String fixPubKey = keyPair.get("publicKey").replace("\n", "");
+        String fixPriKey = keyPair.get("privateKey").replace("\n", "");
+        keyPair.clear();
+        keyPair.put("publicKey", fixPubKey);
+        keyPair.put("privateKey", fixPriKey);
+
         new Thread(new RecThread()).start();    //thread for receiving messages
         dirConnect();   //connect to node specified in dirEntry page
         new Thread(new pingThread()).start();   //start checking availability of nodes in dir_list
@@ -125,7 +131,7 @@ public String recKey;
 
     //runs on button click
     public void sendMsgBtn(View view) throws InterruptedException, NoSuchPaddingException, NoSuchAlgorithmException, IllegalBlockSizeException, BadPaddingException, InvalidKeyException, InvalidKeySpecException {
-        if(dir_list.size()<10){runOnUiThread(()-> Toast.makeText(getApplicationContext(),"Not enough relays",Toast.LENGTH_SHORT).show());}
+        if(dir_list.size()<6){runOnUiThread(()-> Toast.makeText(getApplicationContext(),"Not enough relays",Toast.LENGTH_SHORT).show());}
         else {
             EditText msg = (EditText) findViewById(R.id.EditText);
             message = msg.getText().toString().trim();
@@ -183,7 +189,7 @@ public String recKey;
                     else if(recMsg.equals("KEY")){
                         //send string value of this devices public key
                         //can be sent just like the ACK above is sent
-                        output.write(keyPair.get("publicKey").toString());
+                        output.write((String)keyPair.get("publicKey"));
                         output.flush();
                         socket.shutdownOutput();
                     }
@@ -216,9 +222,11 @@ public String recKey;
                     }
                     else if(recVals.size() > 1){//relay
                         //decrypt recVals.get(0) and recVals.get(1) with this devices private key
+                        String ip = CryptoUtil.decrypt(recVals.get(0), (String)keyPair.get("privateKey"));
+                        String port = CryptoUtil.decrypt(recVals.get(1), (String)keyPair.get("privateKey"));
 
                         runOnUiThread(()-> Toast.makeText(getApplicationContext(),"Relaying",Toast.LENGTH_SHORT).show());
-                        Socket relaySocket = new Socket(recVals.get(0), Integer.parseInt(recVals.get(1)));
+                        Socket relaySocket = new Socket(ip, Integer.parseInt(port));
                         PrintWriter relayOutput = new PrintWriter(relaySocket.getOutputStream());
                         int trashAmount = recVals.get(0).length() + recVals.get(1).length() + 2;
                         String nMsg = addTrash(recVals.get(2), trashAmount);
@@ -235,6 +243,18 @@ public String recKey;
 
             } catch (IOException e) {
                 runOnUiThread(()-> Toast.makeText(getApplicationContext(),"server socket io err",Toast.LENGTH_SHORT).show());
+            } catch (NoSuchAlgorithmException e) {
+                e.printStackTrace();
+            } catch (InvalidKeyException e) {
+                e.printStackTrace();
+            } catch (NoSuchPaddingException e) {
+                e.printStackTrace();
+            } catch (BadPaddingException e) {
+                e.printStackTrace();
+            } catch (InvalidKeySpecException e) {
+                e.printStackTrace();
+            } catch (IllegalBlockSizeException e) {
+                e.printStackTrace();
             }
         }
     }
@@ -348,7 +368,7 @@ public String recKey;
         for(int i = 1; i < dir_list.size(); i+=2){ indexes.add(i);}
         Collections.shuffle(indexes);
         int rNum;
-        while(relays.size() < 6){   //while 3 relay hasn't been chosen
+        while(relays.size() < 2){   //while 3 relay hasn't been chosen
            rNum = indexes.remove(0);
            String posPort = dir_list.get(rNum);
            String posIP = dir_list.get(rNum - 1);
@@ -359,7 +379,8 @@ public String recKey;
                     getKEY.start(); //send message asking for key
                     getKEY.join();  //wait for response
                     //encrypt with received key
-                    CryptoUtil.encrypt(message, recKey);
+                    posIP = CryptoUtil.encrypt(posIP, recKey);
+                    posPort = CryptoUtil.encrypt(posPort, recKey);
                }
                relays.add(posIP);
                relays.add(posPort);
@@ -370,14 +391,28 @@ public String recKey;
                     getKEY.start(); // send message asking for key
                     getKEY.join();  // wait for response
                     //encrypt with received key
-                    CryptoUtil.encrypt(message, recKey);
+                    posIP = CryptoUtil.encrypt(posIP, recKey);
+                    posPort = CryptoUtil.encrypt(posPort, recKey);
                 }
                relays.add(posIP);
                relays.add(posPort);
            }
         }
+
+        Thread getKEY = new Thread(new SendThread("KEY", Dest_IP, Dest_Port, 3));
+        getKEY.start(); // send message asking for key
+        getKEY.join();  // wait for response
+        //encrypt with received key
+        Dest_IP = CryptoUtil.encrypt(Dest_IP, recKey);
+        String encPort = CryptoUtil.encrypt(String.valueOf(Dest_Port), recKey);
+        Dest_IP = Dest_IP.replace("\n", "");
+        encPort = encPort.replace("\n","");
+
         relays.add(Dest_IP);
-        relays.add(String.valueOf(Dest_Port));
+        relays.add(encPort);
+
+        message = CryptoUtil.encrypt(message, recKey);
+        message = message.replace("\n","");
         relays.add(message);
 
         String finMsg = "";
