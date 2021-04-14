@@ -14,10 +14,6 @@ def arrUpdate(arr):
     newlist = []
     newlist = arr.split()
     for x in range(0, len(newlist), 2):
-        if ((newlist[x] == "10.0.2.16")): #this is what the emulator thinks its ip is but we port redirect through localhost so
-            newlist[x] = "127.0.0.1"
-
-    for x in range(0, len(newlist), 2):
         arrLock.acquire()
         if (newlist[x] not in destArr) or (newlist[x+1] not in destArr):
             destArr.append(newlist[x])
@@ -69,16 +65,11 @@ def ping_thread():
             pingSocket.settimeout(10)   #setting timeout for sending/recieving messages
             pingPort = int(destArr[((i*2)+1)%len(destArr)])
             pingIP = destArr[(i*2)%len(destArr)]
-            
-            
-            
             arrLock.release()
             try:    #try send ping
-                #print("pinging")
                 pingSocket.connect((pingIP,pingPort))
                 pingSocket.send('PING\n'.encode())
                 ACK = pingSocket.recv(1024).decode()
-                #print(ACK)
             except (socket.timeout, ConnectionRefusedError, ConnectionResetError):  #if timeout connecting/sending/recieving, remove from directory
                 print('Lost Node: ' + pingIP + ' ', pingPort)
                 removeNode(str(pingPort), pingIP)
@@ -93,7 +84,6 @@ def dirConnect():
     dirSocket.connect((dirAddress, 1201))
     dirSocket.send(('€PORT:' + str(serverPort) + '\n').encode())
     destList = dirSocket.recv(1024).decode()
-    print(destList)
     arrUpdate(destList)
     dirSocket.close()
     dirUpdate()
@@ -102,13 +92,12 @@ def dirConnect():
 #request update from directory
 def dirUpdate():
     for x in range(0, len(destArr), 2):
-        if (int(destArr[x+1]) != serverPort):
-            dirSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            dirSocket.connect((destArr[x], int(destArr[x+1])))
-            dirSocket.send('Update\n'.encode())
-            destList = dirSocket.recv(1024).decode()
-            arrUpdate(destList)
-            dirSocket.close()
+        dirSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        dirSocket.connect((destArr[x], int(destArr[x+1])))
+        dirSocket.send('Update\n'.encode())
+        destList = dirSocket.recv(1024).decode()
+        arrUpdate(destList)
+        dirSocket.close()
 
 #exit from directory
 def dirExit():
@@ -212,14 +201,14 @@ def send_thread():
 def relay_thread():
     serverSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     serverSocket.bind(('',serverPort))
-    serverSocket.listen(3)
+    serverSocket.listen(1)
     while True:
         connectionSocket, addr = serverSocket.accept()
         recMsg = connectionSocket.recv(1024).decode() # recieve message
         #decrypt msg here
 
         recVals = msgSeperator(recMsg)
-        #print(recMsg)
+
         if recVals[0] == 'QUITREQ':
             print('Quitting...')
             break
@@ -252,7 +241,7 @@ def relay_thread():
 
 #'main'
 dirAddress = input('Enter Directory IPv4 Address: ')
-serverPort = int(input('Enter this port num  > 1023: '))    #ask for this items port
+serverPort = int(input('Enter this port num  ()> 1023 and unique): '))    #ask for this items port
 dirConnect()
 th1 = Thread(target=relay_thread, args=())
 th2 = Thread(target=send_thread, args=())

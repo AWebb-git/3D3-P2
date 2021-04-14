@@ -9,7 +9,6 @@ Necessary: Python 3.8+
 Optional: Android Studio with the Java SDK selected in setup (Only needed if you do not have an android device or don't want to install the app via an apk)
 
 SETUP
-Python script files, apk file and windows batch file found in 'Submission files' folder
 ----------Have no Android Device---------------
 
 1.If you have no Android device you must download Android Studio and open the project in it.
@@ -37,7 +36,7 @@ Python script files, apk file and windows batch file found in 'Submission files'
 1.You can either install the app using the APK or android studio
 
 --APK--
-1.Plug your phone into the computer, enable file transfer and drag and drop the 3D3P2.apk file into a folder on the phone.
+1.Plug your phone into the computer, enable file transfer and drag and drop the x.apk file into a folder on the phone.
 2.Open your phone's file manager, select the APK file and install.
 --Android Studio--
 1.Enable developer settings on your phone by repedeately pressing the build number field in your "About phone"/"About device" category in settings.
