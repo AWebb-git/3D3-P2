@@ -36,6 +36,7 @@ public TextView device_ip;
 public TextView info;
 public ListView list;
 public String message;
+public int maxlength = 140;
 public String Source_IP = null;
 public int Source_Port = 1201;
 public String dir_IP  ;  //ENTER you own directory IP
@@ -110,9 +111,14 @@ public Map keyPair;
         else {
             EditText msg = (EditText) findViewById(R.id.EditText);
             message = msg.getText().toString().trim();
-            String sendMsg = msgConfig();
-            ArrayList<String> sendArr = msgSeperator(sendMsg);
-            new Thread(new SendThread(sendArr.get(2), sendArr.get(0), Integer.parseInt(sendArr.get(1)), 0)).start();
+            if(message.length() < maxlength){   //ensure message length is not too large
+                String sendMsg = msgConfig();
+                ArrayList<String> sendArr = msgSeperator(sendMsg);
+                new Thread(new SendThread(sendArr.get(2), sendArr.get(0), Integer.parseInt(sendArr.get(1)), 0)).start();
+            }
+            else {
+                runOnUiThread(()-> Toast.makeText(getApplicationContext(),"Error, message too long!!!",Toast.LENGTH_SHORT).show());
+            }
         }
     }
 
