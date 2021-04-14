@@ -236,7 +236,8 @@ public String recKey;
                     }
                     else{   //receive message
                         String finMsg = recMsg.split("£€%%")[0];
-                        runOnUiThread(()-> response.setText(finMsg));
+                        String finalMsg = CryptoUtil.decrypt(finMsg, (String)keyPair.get("privateKey"));
+                        runOnUiThread(()-> response.setText(finalMsg));
                     }
                     socket.close();
                 }
@@ -278,6 +279,12 @@ public String recKey;
                 //if(dest_port != Source_Port){dest_ip = "10.0.2.2";;}
 
                 InetAddress destIP = null;
+                try {
+                    destIP = InetAddress.getByName("127.0.0.1");
+                } catch (UnknownHostException e) {
+                    e.printStackTrace();
+                }
+                ;
                 PrintWriter outputSend;
                 BufferedReader inputSend;
                 try {
@@ -374,10 +381,10 @@ public String recKey;
            String posIP = dir_list.get(rNum - 1);
 
            if(!(posIP.equals(Source_IP)) && !(posIP.equals("127.0.0.1")) && !((posIP.equals(Dest_IP)))){
+               Thread getKEY = new Thread(new SendThread("KEY", posIP, Integer.parseInt(posPort), 3));
+               getKEY.start(); //send message asking for key
+               getKEY.join();  //wait for response
                if(relays.size() > 1){   //if not the first relay, encrypt with relays public key
-                    Thread getKEY = new Thread(new SendThread("KEY", posIP, Integer.parseInt(posPort), 3));
-                    getKEY.start(); //send message asking for key
-                    getKEY.join();  //wait for response
                     //encrypt with received key
                     posIP = CryptoUtil.encrypt(posIP, recKey);
                     posPort = CryptoUtil.encrypt(posPort, recKey);
@@ -386,10 +393,10 @@ public String recKey;
                relays.add(posPort);
            }
            else if(!(posPort.equals(String.valueOf(Source_Port))) && !(posPort.equals(String.valueOf(Dest_Port)))){
-                if(relays.size() > 1){   //if not the first relay, encrypt with relays public key
-                    Thread getKEY = new Thread(new SendThread("KEY", posIP, Integer.parseInt(posPort), 3));
-                    getKEY.start(); // send message asking for key
-                    getKEY.join();  // wait for response
+               Thread getKEY = new Thread(new SendThread("KEY", posIP, Integer.parseInt(posPort), 3));
+               getKEY.start(); // send message asking for key
+               getKEY.join();  // wait for response
+               if(relays.size() > 1){   //if not the first relay, encrypt with relays public key
                     //encrypt with received key
                     posIP = CryptoUtil.encrypt(posIP, recKey);
                     posPort = CryptoUtil.encrypt(posPort, recKey);
@@ -399,16 +406,19 @@ public String recKey;
            }
         }
 
+        String encIP = CryptoUtil.encrypt(Dest_IP, recKey);
+        String encPort = CryptoUtil.encrypt(String.valueOf(Dest_Port), recKey);
+
+        //get destination key
+        recKey = "0";
         Thread getKEY = new Thread(new SendThread("KEY", Dest_IP, Dest_Port, 3));
         getKEY.start(); // send message asking for key
         getKEY.join();  // wait for response
-        //encrypt with received key
-        Dest_IP = CryptoUtil.encrypt(Dest_IP, recKey);
-        String encPort = CryptoUtil.encrypt(String.valueOf(Dest_Port), recKey);
-        Dest_IP = Dest_IP.replace("\n", "");
+
+        encIP = encIP.replace("\n", "");
         encPort = encPort.replace("\n","");
 
-        relays.add(Dest_IP);
+        relays.add(encIP);
         relays.add(encPort);
 
         message = CryptoUtil.encrypt(message, recKey);
