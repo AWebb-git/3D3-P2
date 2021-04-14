@@ -13,7 +13,7 @@ SETUP
 
 1.If you have no Android device you must download Android Studio and open the project in it.
 2.We will be runnning the app on Android Studio's built-in emulator, so we are required to redirect our device port to the emulator port.
-3.Before you do anything, enter your pcs  IPv4 address that the python scripts will be hosted on, on line 163 in the MainActivity.java file.
+3.Before you do anything, uncomment lines 61 and 225 of MainActivity.java.
 4.Pressing the green run button in the top left to start the emulator, hover over the app on your task bar and you should see 
   something like : Android Emulator - Pixel 3a_API_30_x86:5554
   that last bit after the 'x86:' is what we want, it will almost always be 5554.
@@ -42,5 +42,7 @@ SETUP
 1.Enable developer settings on your phone by repedeately pressing the build number field in your "About phone"/"About device" category in settings.
 2.In developer settings enable usb debugging.
 3.Download Android Studio
+4.Open project and plug in phone to computer.
+5.Press the green run button in the upper left corner and the app will install and run on your device.
 
 ( https://developer.android.com/studio/run/emulator-networking#connecting )
