@@ -56,6 +56,10 @@ public Map keyPair;
         list = (ListView)findViewById(R.id.listview);
         dir_IP =  getIntent().getStringExtra("DirectoryIP");
         Source_IP = getLocalIpAddress();
+
+        //uncomment if running on emulator!!!
+        //Source_IP = "127.0.0.1";
+
         device_ip.setText(Source_IP);
         dir_list = new ArrayList<>();
         dir_list.add(Source_IP);
@@ -121,8 +125,9 @@ public Map keyPair;
                 try {
                     TimeUnit.SECONDS.sleep(3); //could decrease to microseconds ***deal with int i overflow then
                     if(dir_list.size() > 0){    //iterate through list
-                        String pingIp = dir_list.get((i*2)%dir_list.size());
                         String pingPort = dir_list.get(((i*2)+1)%dir_list.size());
+                        String pingIp = dir_list.get((i*2)%dir_list.size());
+
                         new Thread(new SendThread("PING", pingIp, Integer.parseInt(pingPort), 2)).start();
                     }
                 } catch (InterruptedException e) {
@@ -159,8 +164,9 @@ public Map keyPair;
                     else if(recMsg.startsWith("€PORT:")){   //add new node to this nodes list
                         String newPort = recMsg.split("€PORT:")[1];
                         String newIP = socket.getInetAddress().toString().split("/")[1];
-                        if (newIP.equals("10.0.2.2")){
-                            newIP = "192.168.192.19"; // <- your ip here
+
+                        if (newIP.equals("10.0.2.2")){  //for running on emulator
+                            newIP = "127.0.0.1";
                         }
                         output.write(listmsg());
                         output.flush();
@@ -215,6 +221,9 @@ public Map keyPair;
         public void run() {
             if(dest_ip == null){runOnUiThread(()-> Toast.makeText(getApplicationContext(),"Choose destination",Toast.LENGTH_SHORT).show());}
             else {
+                //uncomment for running on emulator here!!!
+                //if(dest_port != Source_Port){dest_ip = "10.0.2.2";;}
+
                 InetAddress destIP = null;
                 PrintWriter outputSend;
                 BufferedReader inputSend;
