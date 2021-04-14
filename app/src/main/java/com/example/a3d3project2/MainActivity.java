@@ -21,12 +21,19 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.SocketException;
 import java.net.UnknownHostException;
+import java.security.InvalidKeyException;
+import java.security.NoSuchAlgorithmException;
+import java.security.spec.InvalidKeySpecException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Enumeration;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
+
+import javax.crypto.BadPaddingException;
+import javax.crypto.IllegalBlockSizeException;
+import javax.crypto.NoSuchPaddingException;
 
 public class MainActivity extends AppCompatActivity {
 public String Dest_IP = null;
@@ -45,7 +52,7 @@ public ArrayList<String> dir_list;  //array list containing [ip1,port1,ip2,port2
 public ArrayList<String> nodes;     //array list containing ["ip1 port1","ip2 port2",...] used for arrayadapter
 public ServerSocket serverSocket;
 public Map keyPair;
-
+public String recKey;
 //ENCRYPTION COMMENTS on LINES 76, 170, 268, 338, 348, 202
 
     @Override
@@ -74,6 +81,13 @@ public Map keyPair;
         updateNodeList();
 
         //generate keypair here
+
+        try {
+            keyPair = CryptoUtil.generateKeyPair();
+
+        } catch (NoSuchAlgorithmException | NoSuchPaddingException | InvalidKeyException | IllegalBlockSizeException | BadPaddingException e) {
+            e.printStackTrace();
+        }
 
         new Thread(new RecThread()).start();    //thread for receiving messages
         dirConnect();   //connect to node specified in dirEntry page
@@ -110,7 +124,7 @@ public Map keyPair;
     }
 
     //runs on button click
-    public void sendMsgBtn(View view) throws InterruptedException {
+    public void sendMsgBtn(View view) throws InterruptedException, NoSuchPaddingException, NoSuchAlgorithmException, IllegalBlockSizeException, BadPaddingException, InvalidKeyException, InvalidKeySpecException {
         if(dir_list.size()<10){runOnUiThread(()-> Toast.makeText(getApplicationContext(),"Not enough relays",Toast.LENGTH_SHORT).show());}
         else {
             EditText msg = (EditText) findViewById(R.id.EditText);
@@ -169,7 +183,9 @@ public Map keyPair;
                     else if(recMsg.equals("KEY")){
                         //send string value of this devices public key
                         //can be sent just like the ACK above is sent
-
+                        output.write(keyPair.get("publicKey").toString());
+                        output.flush();
+                        socket.shutdownOutput();
                     }
                     else if(recMsg.startsWith("€QUIT:")){ //remove node from this nodes list
                         String newIP = socket.getInetAddress().toString().split("/")[1];
@@ -268,6 +284,7 @@ public Map keyPair;
                     }
                     else if(access_arr == 3) {
                         //store public key you have received in a global variable
+                        recKey = inputSend.readLine();
                     }
                 } catch (IOException e) {
                     if(access_arr == 2){    //remove node
@@ -323,7 +340,7 @@ public Map keyPair;
         return lMsg.toString();
     }
 
-    public String msgConfig() throws InterruptedException {
+    public String msgConfig() throws InterruptedException, NoSuchPaddingException, NoSuchAlgorithmException, IllegalBlockSizeException, BadPaddingException, InvalidKeyException, InvalidKeySpecException {
         View view = null;    //dummy View to call dirUpdate
         dirUpdate(view);
         ArrayList<String> relays = new ArrayList<>();
@@ -337,22 +354,24 @@ public Map keyPair;
            String posIP = dir_list.get(rNum - 1);
 
            if(!(posIP.equals(Source_IP)) && !(posIP.equals("127.0.0.1")) && !((posIP.equals(Dest_IP)))){
-              // if(relays.size() > 1){   //if not the first relay, encrypt with relays public key
-                  //Thread getKEY = new Thread(new SendThread("KEY", posIP, Integer.parseInt(posPort), 3));
-                  // getKEY.start(); sendmessage asking for key
-                  // getKEY.join();  wait for respinse
-                  //encrypt with received key
-              // }
+               if(relays.size() > 1){   //if not the first relay, encrypt with relays public key
+                    Thread getKEY = new Thread(new SendThread("KEY", posIP, Integer.parseInt(posPort), 3));
+                    getKEY.start(); //send message asking for key
+                    getKEY.join();  //wait for response
+                    //encrypt with received key
+                    CryptoUtil.encrypt(message, recKey);
+               }
                relays.add(posIP);
                relays.add(posPort);
            }
            else if(!(posPort.equals(String.valueOf(Source_Port))) && !(posPort.equals(String.valueOf(Dest_Port)))){
-               // if(relays.size() > 1){   //if not the first relay, encrypt with relays public key
-               //Thread getKEY = new Thread(new SendThread("KEY", posIP, Integer.parseInt(posPort), 3));
-               // getKEY.start(); sendmessage asking for key
-               // getKEY.join();  wait for respinse
-               //encrypt with received key
-               // }
+                if(relays.size() > 1){   //if not the first relay, encrypt with relays public key
+                    Thread getKEY = new Thread(new SendThread("KEY", posIP, Integer.parseInt(posPort), 3));
+                    getKEY.start(); // send message asking for key
+                    getKEY.join();  // wait for response
+                    //encrypt with received key
+                    CryptoUtil.encrypt(message, recKey);
+                }
                relays.add(posIP);
                relays.add(posPort);
            }
