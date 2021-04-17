@@ -4,37 +4,28 @@ import androidx.appcompat.app.AppCompatActivity;
 
 import android.content.Intent;
 import android.os.Bundle;
-import android.text.format.Time;
 import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.TextView;
+import android.widget.Toast;
 
 
 import java.io.BufferedReader;
-import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.net.Inet4Address;
 import java.net.InetAddress;
 import java.net.NetworkInterface;
-import java.net.Socket;
 import java.net.SocketException;
-import java.net.UnknownHostException;
 import java.util.Enumeration;
-import java.util.Map;
-import java.util.Timer;
 
+//Page for entering IP of initial node to connect to
 public class dirEntry extends AppCompatActivity {
     public TextView display;
     public TextView ipdisp;
-    public TextView example;
-    public TextView encrypted;
-    public TextView decrypted;
     public EditText input;
     public Button submit;
-    public Map keyPair;
-    public Socket socket;
-    public String Source_Port = "1201";
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -65,7 +56,6 @@ public class dirEntry extends AppCompatActivity {
     }
     private String getText(){
         String Dir_IP = input.getText().toString().trim();
-        //runOnUiThread(()-> display.setText(Dir_IP));
         return Dir_IP;
     }
 
@@ -81,8 +71,7 @@ public class dirEntry extends AppCompatActivity {
                 }
             }
         } catch (SocketException ex) {
-            display.setText("ex");
-            runOnUiThread(()-> display.setText("ex"));
+            runOnUiThread(()-> Toast.makeText(getApplicationContext(),"Error Retrieving LocalIP address",Toast.LENGTH_SHORT).show());
         }
         return null;
     }
