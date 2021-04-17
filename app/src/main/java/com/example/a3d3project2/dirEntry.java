@@ -9,6 +9,7 @@ import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.TextView;
+import android.widget.Toast;
 
 
 import java.io.BufferedReader;
@@ -24,6 +25,7 @@ import java.util.Enumeration;
 import java.util.Map;
 import java.util.Timer;
 
+//Page for getting initial node to connect to
 public class dirEntry extends AppCompatActivity {
     public TextView display;
     public TextView ipdisp;
@@ -65,7 +67,6 @@ public class dirEntry extends AppCompatActivity {
     }
     private String getText(){
         String Dir_IP = input.getText().toString().trim();
-        //runOnUiThread(()-> display.setText(Dir_IP));
         return Dir_IP;
     }
 
@@ -81,8 +82,7 @@ public class dirEntry extends AppCompatActivity {
                 }
             }
         } catch (SocketException ex) {
-            display.setText("ex");
-            runOnUiThread(()-> display.setText("ex"));
+            runOnUiThread(()-> Toast.makeText(getApplicationContext(),"Error getting Local IP address",Toast.LENGTH_SHORT).show());
         }
         return null;
     }
